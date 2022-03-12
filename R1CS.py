@@ -1,58 +1,106 @@
 from manim import *
 
+# manim -pql R1CS.py Formula
+# manim -pql R1CS.py CalcWitness
 # ffmpeg -i ./media/videos/R1CS/480p15/Formula.mp4 -loop 0 fig1.gif
+# ffmpeg -i ./media/videos/R1CS/480p15/CalcWitness.mp4 -loop 0 fig2.gif
 # https://superuser.com/questions/556029/how-do-i-convert-a-video-to-gif-using-ffmpeg-with-reasonable-quality
 
+
+# fig 1
+#
+
 class Formula(Scene):
-    def substitute(self, src, srceq, dest,desteq, neweq, finaleq=None):
+    def focus(self, src, dest):
         framebox1 = SurroundingRectangle(src, buff = .1)
         framebox2 = SurroundingRectangle(dest, buff = .1)
         self.play(Create(framebox1))
         self.play(ReplacementTransform(framebox1,framebox2))
-        self.wait()
+        self.wait(duration=0.1)
         self.remove(framebox2)
-        self.remove(srceq)
-        self.add(src)
-        neweq.align_to(desteq,LEFT).align_to(desteq,DOWN)
-        self.play(TransformMatchingShapes(Group(src,desteq), neweq))
-        if finaleq is not None:
-            finaleq.align_to(desteq,LEFT).align_to(desteq,DOWN)
-            self.play(TransformMatchingShapes(neweq,finaleq))        
-        
+
+    def initlayout(self, eq): # setup initial layout
+        eqtprev = None
+        eqt = []
+        for i,x in enumerate(eq):
+            a = MathTex(*x[:-1])
+            eqt.append(a)
+            if i==0:
+                a.shift([0,1.5,0])
+            if x[-1]=="disp":                
+                if eqtprev is not None:
+                    a.next_to(eqtprev,DOWN, buff=0.3)
+                self.add(a)
+                eqtprev=a
+        return(eqt)
+                
+    def xf(self, eqt, idx): # transform                
+        for i,x in enumerate(idx):
+            src,dest,op = x
+            if type(src)==tuple:
+                a = eqt[src[0]][src[1]]
+                b = eqt[dest[0]][dest[1]]
+
+                aa = a.copy()
+                aa.move_to(b.get_center())
+                if op!='nofocus':
+                    self.focus(a,b)
+                if op=='rm':
+                    self.remove(eqt[src[0]])
+                self.play(Transform(b,aa))
+                self.wait(duration=0.5)
+            else:
+                a = eqt[src]
+                b = eqt[dest]
+                aa = a.copy().move_to(b.get_center())
+                eqt[dest] = aa
+                self.remove(b)
+                self.play(Indicate(aa))
+                if op=='rm':
+                    self.remove(a)
+                self.wait(duration=0.5)
+                
+                                
     def construct(self):
 
-        t1 = MathTex("sym_1=", "x * x")
-        t2 = MathTex("y=", "sym_1", "* x")
-        t2new = MathTex("y = x * x * x")
-        t2final = MathTex("y=","x^3")
-        t3 = MathTex("sym_2 =","y","+ x")
-        t3new = MathTex("sym_2=","x^3+ x")
-        t4 = MathTex("Out = ","sym_2","+5")
-        t4new = MathTex("Out = x^3+x+5")
-        t1.shift(UP)
-        t2.next_to(t1,DOWN,buff=0.3)
-        t3.next_to(t2,DOWN,buff=0.3)
-        t4.next_to(t3,DOWN,buff=0.3)
-        self.add(t1,t2,t3,t4)
-        self.wait()
+        t1 = []
+        t1.append(["sym_1=", "x * x", 'disp']) # eq 0
+        t1.append(["y=",     "sym_1", "* x", 'disp']) # eq 1
+        t1.append(["y =","x^3", 'nodisp']) # eq 2
+        t1.append(["sym_2 =","y","+ x", 'disp']) # eq 3
+        t1.append(["sym_2 = ","x^3+x", 'nodisp']) # eq 4
+        t1.append(["Out = ","sym_2","+5", 'disp']) # eq 5
+        t1.append(["Out = x^3+x+5", 'nodisp']) # eq 6
+        eqt = self.initlayout(t1)
+        self.xf(eqt,[[(0,1),(1,1),'rm'],
+                    [2,1,''],
+                    [(1,1),(3,1),'rm'],
+                    [4,3,''],
+                    [(3,1),(5,1),'rm'],
+                    [6,5,'']
+                   ])
+
+        """
+        Here, the meaning is:
+        (0,1) = "x * x"
+        (1,1) = "sym_1"
+
+        'rm' in the first commmand = remove (0,1) as part of transforming 
+        (1,1) into (0,1)
+
+        2 = ["y =","x^3", 'nodisp']
+        1 = "y=",     "sym_1", "* x", 'disp']
+        '' in the second command = transform eq 1 into eq 2, and don't touch 
+        eq 2 (in this case, because eq 2 was never displayed)
         
-        self.substitute(t1[1], t1, t2[1], t2, t2new, t2final)
-        self.wait()
-#         src, srceq, dest, desteq, neweq, finaleq
-#         src=t1[2]
-#         srceq = t1
-#         dest=t2[2]
-#         desteq=t2
-#         neweq=t2p
-#         finaleq=t2pp
+        Also, 'nofocus' in the command = don't run the focus box, and 
+        don't remove (no 'rm')
+        """
+        self.wait(duration=2)
 
-        self.substitute(t2final[1], t2final, t3[1], t3, t3new)
-        self.wait()
-        self.substitute(t3new[1], t3new, t4[1], t4, t4new)
-    
-        self.wait(duration=5)
-#         self.play(Write(formula), run_time=30)
 
+# fig 2
+#
 
 class CalcWitness(Scene):
     def plugfly(self, src, dest, destnew):
@@ -69,56 +117,100 @@ class CalcWitness(Scene):
     def overlap(self, first, second):
         second.align_to(first,LEFT).align_to(first,DOWN)
 
+    def focus(self, src, dest):
+        framebox1 = SurroundingRectangle(src, buff = .1)
+        framebox2 = SurroundingRectangle(dest, buff = .1)
+        self.play(Create(framebox1))
+        self.play(ReplacementTransform(framebox1,framebox2))
+        self.wait(duration=0.1)
+        self.remove(framebox2)
+
+    def initlayout(self, eq): # setup initial layout
+        eqt = []
+        for x in eq:
+            a = MathTex(*x[:-1])
+            eqt.append(a)
+        eqt[0].shift([0,2.5,0])
+        eqt[1].shift([0,2,0])
+        for i in range(len(eqt[0])):
+            eqt[1][i].align_to(eqt[0][i],RIGHT)
+        eqt[2].shift([0,0.5,0])
+        self.add(eqt[0],eqt[1],eqt[2])
+        eqtprev = eqt[2]
+        for i in range(3,len(eq)):
+            if eq[i][-1]=="disp":                
+                a=eqt[i]
+                a.next_to(eqtprev,DOWN, buff=0.3)
+                self.add(a)
+                eqtprev=a
+        return(eqt)
+                
+    def xf(self, eqt, idx): # transform                
+        for i,x in enumerate(idx):
+            src,dest,op = x
+            if type(src)==tuple:
+                a = eqt[src[0]][src[1]]
+                b = eqt[dest[0]][dest[1]]
+
+                aa = a.copy()
+                aa.move_to(b.get_center())
+                if op!='nofocus':
+                    self.focus(a,b)
+                if op=='rm':
+                    self.remove(eqt[src[0]])
+                self.play(Transform(b,aa))
+                self.wait(duration=0.5)
+            else:
+                a = eqt[src]
+                b = eqt[dest]
+                aa = a.copy().move_to(b.get_center())
+                eqt[dest] = aa
+                self.remove(b)
+                self.play(Indicate(aa))
+                if op=='rm':
+                    self.remove(a)
+                self.wait(duration=0.5)
+                        
     def construct(self):
+        t1 = []
+        t1.append(['one', '\quad', 'x', '\quad', "out", "\quad", "sym_1", "\quad", "y", "\quad", "sym_2",'disp'])
+        t1.append(["1","\quad","3","\quad","?","\quad","?","\quad","?",'\quad',"?",'disp']) # eq 1
+        t1.append(["sym_1","=", "x", '*', 'x', 'disp']) # eq 2
+        t1.append(['9','=3*3', 'nodisp']) # eq 3
 
-        vars = MathTex("one \quad", "x \quad", "out \quad", "sym_1 \quad", "y \quad", "sym_2")
-        val=[]
-        val.append(MathTex("1 \quad","3 \quad","? \quad","? \quad","? \quad","?"))
-        val.append(MathTex("1 \quad","3 \quad","? \quad","9 \quad","? \quad","?"))
-        val.append(MathTex("1 \quad","3 \quad","? \quad","9 \quad","27 \quad","?"))
-        val.append(MathTex("1 \quad","3 \quad","? \quad","9 \quad","27 \quad","30"))
-        val.append(MathTex("1 \quad","3 \quad","35 \quad","9 \quad","27 \quad","30"))
-        vars.shift([0,2.7,0])
-        self.add(vars)
-        for i,x in enumerate(val):
-            x.shift([0,2,0])
-            for j in range(len(vars)):
-                x[j].align_to(vars[j],LEFT)
-        self.add(val[0])
+        t1.append(["y","=","sym_1", "*","x", 'disp']) # eq 4
+        t1.append(['27','=9*3', 'nodisp']) # eq 5
+
+        t1.append(["sym_2","=","y","+","x",'disp']) # eq 6
+        t1.append(["30","=27+3", 'nodisp']) # eq 7
+
+        t1.append(["Out", "=","sym_2","+5", 'disp']) # eq 8
+        t1.append(["35","=30+5", 'nodisp']) # eq 9
         
-        eqa, eqb, eqc = [],[],[]
-        eqa.append(MathTex("sym_1 = x * x"))
-        eqb.append(MathTex("sym_1 = 3 * 3"))
-        eqc.append(MathTex("9=3*3"))
-        
-        eqa.append(MathTex("y = sym_1 * x"))
-        eqb.append(MathTex("y = 9*3"))
-        eqc.append(MathTex("27=9*3"))
+        eqt = self.initlayout(t1)
+        self.xf(eqt,[[(1,2),(2,2),''],
+                    [(1,2),(2,4),''],
+                    [(3,0),(2,0),'nofocus'],
+                    [3,2,''],
+                    [(2,0),(1,6),''],
 
-        eqa.append(MathTex("sym_2 = y+ x"))
-        eqb.append(MathTex("sym_2 = 27 + 3"))
-        eqc.append(MathTex("30 = 27 + 3"))
+                    [(1,6),(4,2),''],
+                    [(1,2),(4,4),''],
+                    [(5,0),(4,0),'nofocus'],
+                    [5,4,''],
+                    [(4,0),(1,8),''],
 
-        eqa.append(MathTex("out = sym_2 + 5"))
-        eqb.append(MathTex("out = 30 + 5"))
-        eqc.append(MathTex("35 = 30 + 5"))
+                    [(1,8),(6,2),''],
+                    [(1,2),(6,4),''],
+                    [(7,0),(6,0),'nofocus'],
+                    [7,6,''],
+                    [(6,0),(1,10),''],
 
-        for i in range(1,len(eqa)):
-            eqa[i].next_to(eqa[i-1],DOWN,buff=0.3)
-        for i in range(len(eqa)):
-            self.add(eqa[i])
-            self.overlap(eqa[i],eqb[i])
-            self.overlap(eqa[i],eqc[i])
-     
-        for i in range(len(eqa)-1):
-            self.plugfly(val[i],eqa[i],eqb[i])
-            self.calc(eqa[i],eqb[i],eqc[i])
-            self.plugfade(eqc[i],val[i],val[i+1])
-            
-# need to hand tune the 4th equation
-        i=3
-        self.plugfade(val[i],eqa[i],eqb[i])
-        self.calc(eqa[i],eqb[i],eqc[i])
-        self.plugfade(eqc[i],val[i],val[i+1])
-        
-        self.wait(duration=5)
+                    [(1,10),(8,2),''],
+                    [(9,0),(8,0),'nofocus'],
+                    [9,8,''],
+                    [(8,0),(1,4),''],
+
+                    ])
+
+        self.wait(duration=2)
